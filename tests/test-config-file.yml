@@ -1,0 +1,40 @@
+name: Test usage with config file
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create config file
+        run: |
+          cat > "$GITHUB_WORKSPACE/.markdown-confluence.json" <<'EOF'
+          {
+            "confluenceBaseUrl": "https://invalid-confluence-instance.example.com",
+            "confluenceParentId": "123456",
+            "atlassianUserName": "test-user@example.com",
+            "folderToPublish": "docs",
+            "contentRoot": "."
+          }
+          EOF
+          echo "Config file created:"
+          cat "$GITHUB_WORKSPACE/.markdown-confluence.json"
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          configFile: .markdown-confluence.json
+          atlassianApiToken: invalid-api-token
+
+      - name: Assert action failed due to invalid credentials (not a missing config file error)
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "action outcome: $OUTCOME"
+          if [ "$OUTCOME" = "success" ]; then
+            echo "FAIL: expected action to fail with invalid credentials"
+            exit 1
+          fi
+          echo "PASS: action failed as expected (config file was found, credentials were invalid)"
