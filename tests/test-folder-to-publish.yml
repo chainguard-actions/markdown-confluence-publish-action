@@ -1,4 +1,4 @@
-name: Test configFile input
+name: Test folderToPublish input
 on:
   workflow_dispatch:
 jobs:
@@ -17,27 +17,16 @@ jobs:
           git remote set-url origin "$GITHUB_WORKSPACE/.git-remote" 2>/dev/null || \
             git remote add origin "$GITHUB_WORKSPACE/.git-remote"
 
-      - name: Create a config file and sample markdown content
+      - name: Create sample markdown files in a folder
         run: |
-          mkdir -p "$GITHUB_WORKSPACE/content"
-          # Create a minimal config file
-          cat > "$GITHUB_WORKSPACE/.markdown-confluence.json" << 'EOF'
-          {
-            "confluenceBaseUrl": "https://fake-instance.atlassian.net/wiki",
-            "confluenceParentId": "789012",
-            "atlassianUserName": "fake-user@example.com",
-            "atlassianApiToken": "fake-api-token",
-            "contentRoot": "content"
-          }
+          mkdir -p "$GITHUB_WORKSPACE/wiki"
+          cat > "$GITHUB_WORKSPACE/wiki/page-one.md" << 'EOF'
+          # Page One
+          Content for page one.
           EOF
-          # Create a sample markdown file
-          cat > "$GITHUB_WORKSPACE/content/sample.md" << 'EOF'
-          ---
-          connie-publish: true
-          connie-title: "Sample Page"
-          ---
-          # Sample Page
-          This is a sample page for config file testing.
+          cat > "$GITHUB_WORKSPACE/wiki/page-two.md" << 'EOF'
+          # Page Two
+          Content for page two.
           EOF
 
       - id: action
@@ -45,11 +34,11 @@ jobs:
         continue-on-error: true
         with:
           confluenceBaseUrl: 'https://fake-instance.atlassian.net/wiki'
-          confluenceParentId: '789012'
+          confluenceParentId: '654321'
           atlassianUserName: 'fake-user@example.com'
           atlassianApiToken: 'fake-api-token'
-          contentRoot: 'content'
-          configFile: '.markdown-confluence.json'
+          folderToPublish: 'wiki'
+          contentRoot: '.'
 
       - name: Assert action ran (not skipped or cancelled)
         env:
@@ -62,4 +51,4 @@ jobs:
             echo "FAIL: action was skipped or cancelled — it did not run at all"
             exit 1
           fi
-          echo "PASS: action ran (outcome=$OUTCOME) — Docker container started successfully with configFile input"
+          echo "PASS: action ran (outcome=$OUTCOME) — Docker container started successfully with folderToPublish input"
