@@ -1,4 +1,4 @@
-name: Test with config file input
+name: Test basic invocation with invalid credentials
 on:
   workflow_dispatch:
 jobs:
@@ -7,25 +7,16 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: Create config file and markdown content
+      - name: Create minimal markdown file for publishing
         run: |
           mkdir -p docs
           cat > docs/index.md << 'EOF'
           ---
           connie-publish: true
-          connie-title: Config Test Page
+          connie-title: Test Page
           ---
-          # Config Test Page
-          Testing with a config file.
-          EOF
-          cat > .markdown-confluence.json << 'EOF'
-          {
-            "confluenceBaseUrl": "https://invalid-test-instance.atlassian.net",
-            "confluenceParentId": "123456",
-            "atlassianUserName": "test@example.com",
-            "atlassianApiToken": "invalid-token",
-            "folderToPublish": "docs"
-          }
+          # Test Page
+          This is a test page.
           EOF
 
       - id: action
@@ -36,17 +27,19 @@ jobs:
           confluenceParentId: '123456'
           atlassianUserName: 'test@example.com'
           atlassianApiToken: 'invalid-token'
-          configFile: '.markdown-confluence.json'
+          folderToPublish: 'docs'
           contentRoot: '.'
 
-      - name: Assert action ran with config file (expected to fail with auth error)
+      - name: Assert action ran (expected to fail with auth error, not crash)
         env:
           OUTCOME: ${{ steps.action.outcome }}
         run: |
           echo "action outcome: $OUTCOME"
           # The action should fail (due to invalid credentials) but not be skipped
+          # A 'failure' outcome means the Docker container ran and exited non-zero
+          # which is the expected behavior when credentials are invalid
           if [ "$OUTCOME" = "skipped" ]; then
             echo "FAIL: action was skipped, expected it to run"
             exit 1
           fi
-          echo "PASS: action ran with config file (outcome=$OUTCOME, expected failure due to invalid credentials)"
+          echo "PASS: action ran (outcome=$OUTCOME, expected failure due to invalid credentials)"

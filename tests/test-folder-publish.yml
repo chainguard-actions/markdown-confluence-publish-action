@@ -1,0 +1,52 @@
+name: Test folder to publish scenario
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create nested folder structure with markdown files
+        run: |
+          mkdir -p wiki/getting-started
+          mkdir -p wiki/reference
+          cat > wiki/getting-started/intro.md << 'EOF'
+          ---
+          connie-publish: true
+          connie-title: Introduction
+          ---
+          # Introduction
+          Getting started guide.
+          EOF
+          cat > wiki/reference/api.md << 'EOF'
+          ---
+          connie-publish: true
+          connie-title: API Reference
+          ---
+          # API Reference
+          API documentation.
+          EOF
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          confluenceBaseUrl: 'https://invalid-test-instance.atlassian.net'
+          confluenceParentId: '654321'
+          atlassianUserName: 'test@example.com'
+          atlassianApiToken: 'invalid-token'
+          folderToPublish: 'wiki'
+          contentRoot: '.'
+
+      - name: Assert action ran for folder publish (expected to fail with auth error)
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "action outcome: $OUTCOME"
+          # The action should fail (due to invalid credentials) but not be skipped
+          if [ "$OUTCOME" = "skipped" ]; then
+            echo "FAIL: action was skipped, expected it to run"
+            exit 1
+          fi
+          echo "PASS: action ran for folder publish (outcome=$OUTCOME, expected failure due to invalid credentials)"
