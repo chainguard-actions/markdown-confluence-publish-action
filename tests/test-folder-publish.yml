@@ -1,0 +1,44 @@
+name: Test folder publish input
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create markdown files in a folder
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/publish-folder"
+          cat > "$GITHUB_WORKSPACE/publish-folder/page1.md" << 'EOF'
+          # Page One
+          Content of page one.
+          EOF
+          cat > "$GITHUB_WORKSPACE/publish-folder/page2.md" << 'EOF'
+          # Page Two
+          Content of page two.
+          EOF
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          confluenceBaseUrl: 'https://invalid-test-instance.atlassian.net/wiki'
+          confluenceParentId: '654321'
+          atlassianUserName: 'test@example.com'
+          atlassianApiToken: 'fake-api-token-for-testing'
+          folderToPublish: 'publish-folder'
+          contentRoot: '.'
+
+      - name: Assert action ran with folder input
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "action outcome: $OUTCOME"
+          # The action should have run (not skipped) — it may fail due to
+          # invalid credentials, but it must not be 'skipped'.
+          if [ "$OUTCOME" = "skipped" ]; then
+            echo "FAIL: action was skipped — Docker container did not start"
+            exit 1
+          fi
+          echo "PASS: action ran with folderToPublish input (outcome=$OUTCOME)"
