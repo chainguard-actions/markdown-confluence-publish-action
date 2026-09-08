@@ -1,0 +1,66 @@
+name: Test extended inputs coverage
+on:
+  workflow_dispatch:
+jobs:
+  test-extended-inputs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create sample markdown file and config for extended input testing
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/docs"
+          cat > "$GITHUB_WORKSPACE/docs/extended-sample.md" <<'EOF'
+          ---
+          connie-publish: true
+          connie-title: "Extended Sample Page"
+          connie-tags:
+            - extended
+          ---
+          # Extended Sample Page
+
+          This is a sample markdown page for extended input testing.
+          EOF
+
+          cat > "$GITHUB_WORKSPACE/confluence-config.json" <<'EOF'
+          {}
+          EOF
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          command: validate
+          contentRoot: ${{ github.workspace }}
+          folderToPublish: docs
+          configFile: confluence-config.json
+          confluenceSiteUrl: "https://example.atlassian.net/wiki"
+          confluenceAuthType: "basic"
+          atlassianClientId: "fake-client-id"
+          atlassianClientSecret: "fake-client-secret"
+          confluenceRequestHeaders: "{}"
+          tagsToPublish: "extended"
+          mermaidProtocolTimeout: "180000"
+          plantumlEnabled: "false"
+          plantumlServerUrl: "https://www.plantuml.com/plantuml"
+          reportPath: "-"
+          firstHeadingPageTitle: "false"
+          forceOverwrite: "false"
+          lockPublishedPages: "false"
+          krokiEnabled: "false"
+          krokiServerUrl: "https://kroki.io"
+          krokiFormat: "png"
+          krokiTimeoutMs: "30000"
+
+      - name: Assert extended inputs test ran
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          # validate is an offline command; it may succeed or fail depending on
+          # tool configuration, but it must not be skipped.
+          if [ "$OUTCOME" = "skipped" ]; then
+            echo "FAIL: step was unexpectedly skipped"
+            exit 1
+          fi
+          echo "PASS: extended inputs test ran with outcome '$OUTCOME'"

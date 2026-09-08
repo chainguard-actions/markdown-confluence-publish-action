@@ -1,0 +1,49 @@
+name: release-please
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+concurrency:
+  group: publish-action-release
+  cancel-in-progress: false
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+    steps:
+      - name: Prepare or create the release
+        id: release
+        uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+        with:
+          token: ${{ github.token }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+      - name: Checkout the released action
+        if: steps.release.outputs.release_created == 'true'
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ steps.release.outputs.tag_name }}
+          persist-credentials: false
+      - name: Verify the pinned container and update version aliases
+        if: steps.release.outputs.release_created == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          set -euo pipefail
+          [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          image=$(node scripts/release-image.mjs)
+          [[ "$image" =~ ^ghcr.io/markdown-confluence/publish:[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          docker buildx imagetools inspect "$image" --raw | jq -e '.manifests | any(.platform.architecture == "amd64") and any(.platform.architecture == "arm64")'
+          sha=$(git rev-parse HEAD)
+          for alias in "v${VERSION%%.*}" "v${VERSION%.*}"; do
+            if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$alias" >/dev/null 2>&1; then
+              gh api --method PATCH "repos/$GITHUB_REPOSITORY/git/refs/tags/$alias" -f sha="$sha" -F force=true >/dev/null
+            else
+              gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" -f ref="refs/tags/$alias" -f sha="$sha" >/dev/null
+            fi
+          done

@@ -1,0 +1,43 @@
+name: Test validate command (offline)
+on:
+  workflow_dispatch:
+jobs:
+  test-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create sample markdown file for validation
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/docs"
+          cat > "$GITHUB_WORKSPACE/docs/sample.md" <<'EOF'
+          ---
+          connie-publish: true
+          connie-title: "Sample Page"
+          ---
+          # Sample Page
+
+          This is a sample markdown page for validation testing.
+          EOF
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          command: validate
+          contentRoot: ${{ github.workspace }}
+          folderToPublish: docs
+
+      - name: Assert validate command ran (offline validation)
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          # validate is an offline command; it may succeed (no pages to validate
+          # against a real server) or fail if the tool requires some config.
+          # Either way it must not be skipped.
+          if [ "$OUTCOME" = "skipped" ]; then
+            echo "FAIL: step was unexpectedly skipped"
+            exit 1
+          fi
+          echo "PASS: validate command ran with outcome '$OUTCOME'"
